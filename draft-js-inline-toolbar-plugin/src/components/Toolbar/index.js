@@ -59,32 +59,46 @@ export default class Toolbar extends React.Component {
 
       if (!selectionRect) return;
 
+      const dummy = selectionRect.left - relativeRect.left + selectionRect.width / 2;
       const position = {
         top: (selectionRect.top - relativeRect.top) - toolbarHeight,
-        left: (selectionRect.left - relativeRect.left) + (selectionRect.width / 2),
+        dummy,
+        left: Math.max(Math.min(dummy, relativeRect.right - toolbarWidth/2),
+                       toolbarWidth/2 + relativeRect.left),
       };
       this.setState({ position });
     });
   };
 
-  getStyle() {
+  getStyle(pseudo) {
     const { store } = this.props;
     const { overrideContent, position } = this.state;
     const selection = store.getItem('getEditorState')().getSelection();
     // overrideContent could for example contain a text input, hence we always show overrideContent
     // TODO: Test readonly mode and possibly set isVisible to false if the editor is readonly
     const isVisible = (!selection.isCollapsed() && selection.getHasFocus()) || overrideContent;
-    const style = { ...position };
 
-    if (isVisible) {
-      style.visibility = 'visible';
-      style.transform = 'translate(-50%) scale(1)';
-      style.transition = 'transform 0.15s cubic-bezier(.3,1.2,.2,1)';
+    let style = {};
+    if (pseudo) {
+      if (isVisible) {
+        if (position && position.dummy != position.left) {
+          const toolbarWidth = this.toolbar.clientWidth;
+          style.left = ((toolbarWidth/2 - position.left + position.dummy) * 100 / toolbarWidth) + "%";
+        } else {
+          style.left = "50%";
+        }
+      }
     } else {
-      style.transform = 'translate(-50%) scale(0)';
-      style.visibility = 'hidden';
+      style = { ...position };
+      if (isVisible) {
+        style.visibility = 'visible';
+        style.transform = 'translate(-50%) scale(1)';
+        style.transition = 'transform 0.15s cubic-bezier(.3,1.2,.2,1)';
+      } else {
+        style.transform = 'translate(-50%) scale(0)';
+        style.visibility = 'hidden';
+      }
     }
-
     return style;
   }
 
@@ -105,13 +119,21 @@ export default class Toolbar extends React.Component {
     return (
       <div
         className={theme.toolbarStyles.toolbar}
-        style={this.getStyle()}
+        style={this.getStyle(false)}
         ref={this.handleToolbarRef}
       >
+        <div
+          className={theme.toolbarStyles.toolbar_before}
+          style={this.getStyle(true)}
+        ></div>
         {OverrideContent
           ? <OverrideContent {...childrenProps} />
           : structure.map((Component, index) =>
             <Component key={index} {...childrenProps} />)}
+        <div
+          className={theme.toolbarStyles.toolbar_after}
+          style={this.getStyle(true)}
+        ></div>
       </div>
     );
   }
